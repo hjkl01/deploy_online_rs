@@ -1,0 +1,52 @@
+[package]
+name = "deploy_online"
+version = "0.1.0"
+edition = "2021"
+description = "Single-binary Linux deploy platform with GitHub Actions-like YAML workflows"
+license = "MIT"
+rust-version = "1.75"
+
+[dependencies]
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros", "process", "signal", "sync", "time", "fs", "io-util"] }
+axum = { version = "0.7", features = ["macros", "ws"] }
+tower = "=0.5.1"
+tower-http = { version = "=0.5.2", features = ["cors", "trace"] }
+futures-util = "0.3"
+
+serde = { version = "=1.0.210", features = ["derive"] }
+serde_json = "=1.0.128"
+serde_yaml = "=0.9.34"
+
+rusqlite = { version = "=0.31.0", features = ["bundled"] }
+r2d2 = "=0.8.10"
+r2d2_sqlite = "=0.24.0"
+
+bcrypt = "=0.15.1"
+rand = { version = "=0.8.5", default-features = false, features = ["std", "std_rng", "getrandom"] }
+getrandom = "=0.2.15"
+base64ct = "=1.6.0"
+sha2 = "=0.10.8"
+
+dirs = "=5.0.1"
+dotenvy = "=0.15.7"
+clap = { version = "=4.4.18", features = ["derive", "env"] }
+
+tracing = "=0.1.40"
+tracing-subscriber = { version = "=0.3.18", features = ["env-filter"] }
+
+rust-embed = { version = "=8.4.0", features = ["mime-guess", "interpolate-folder-path"] }
+mime_guess = "=2.0.5"
+
+chrono = { version = "=0.4.38", features = ["serde", "clock"], default-features = false }
+thiserror = "=1.0.64"
+anyhow = "=1.0.89"
+uuid = { version = "=1.10.0", features = ["v4", "serde"] }
+nix = { version = "=0.29.0", features = ["process", "signal"] }
+which = "=6.0.3"
+base64 = "=0.21.7"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "z"
