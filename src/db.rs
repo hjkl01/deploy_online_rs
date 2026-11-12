@@ -309,7 +309,13 @@ impl Db {
         .map_err(Into::into)
     }
 
-    pub fn upsert_project(&self, name: &str, description: &str, yaml: &str, enabled: bool) -> Result<i64> {
+    pub fn upsert_project(
+        &self,
+        name: &str,
+        description: &str,
+        yaml: &str,
+        enabled: bool,
+    ) -> Result<i64> {
         let _wf = crate::workflow::ProjectWorkflow::parse(yaml)?;
         let now = Utc::now().to_rfc3339();
         let c = self.conn()?;
@@ -338,9 +344,7 @@ impl Db {
     }
 
     pub fn create_deployment(&self, project_id: i64, user_id: Option<i64>) -> Result<i64> {
-        let project = self
-            .get_project(project_id)?
-            .context("项目不存在")?;
+        let project = self.get_project(project_id)?.context("项目不存在")?;
         if !project.enabled {
             bail!("项目已禁用");
         }
@@ -363,7 +367,11 @@ impl Db {
         self.create_deployment(p.id, user_id)
     }
 
-    pub fn claim_pending(&self, exclude_project_ids: &[i64], capacity: usize) -> Result<Vec<(i64, i64)>> {
+    pub fn claim_pending(
+        &self,
+        exclude_project_ids: &[i64],
+        capacity: usize,
+    ) -> Result<Vec<(i64, i64)>> {
         if capacity == 0 {
             return Ok(vec![]);
         }
@@ -371,18 +379,20 @@ impl Db {
         let tx = c.unchecked_transaction()?;
 
         let mut running_projects: Vec<i64> = {
-            let mut stmt = tx.prepare("SELECT DISTINCT project_id FROM deployments WHERE status = 'running'")?;
+            let mut stmt =
+                tx.prepare("SELECT DISTINCT project_id FROM deployments WHERE status = 'running'")?;
             let rows = stmt.query_map([], |r| r.get(0))?;
             rows.collect::<Result<Vec<_>, _>>()?
         };
         running_projects.extend_from_slice(exclude_project_ids);
 
-        let mut stmt = tx.prepare(
-            "SELECT id, project_id FROM deployments WHERE status = 'pending' ORDER BY id LIMIT 100",
-        )?;
-        let candidates: Vec<(i64, i64)> = stmt
-            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-            .collect::<Result<Vec<_>, _>>()?;
+        let candidates: Vec<(i64, i64)> = {
+            let mut stmt = tx.prepare(
+                "SELECT id, project_id FROM deployments WHERE status = 'pending' ORDER BY id LIMIT 100",
+            )?;
+            let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+            rows.collect::<Result<Vec<_>, _>>()?
+        };
 
         let mut claimed = Vec::new();
         let mut reserved = running_projects;
@@ -538,7 +548,13 @@ impl Db {
         Ok(())
     }
 
-    pub fn append_log(&self, deployment_id: i64, step_id: Option<i64>, stream: &str, message: &str) -> Result<i64> {
+    pub fn append_log(
+        &self,
+        deployment_id: i64,
+        step_id: Option<i64>,
+        stream: &str,
+        message: &str,
+    ) -> Result<i64> {
         let c = self.conn()?;
         let now = Utc::now().to_rfc3339();
         c.execute(
@@ -548,7 +564,11 @@ impl Db {
         Ok(c.last_insert_rowid())
     }
 
-    pub fn list_logs_after(&self, deployment_id: i64, after_id: i64) -> Result<Vec<(i64, Option<i64>, String, String)>> {
+    pub fn list_logs_after(
+        &self,
+        deployment_id: i64,
+        after_id: i64,
+    ) -> Result<Vec<(i64, Option<i64>, String, String)>> {
         let c = self.conn()?;
         let mut stmt = c.prepare(
             "SELECT id, step_id, stream, message FROM logs WHERE deployment_id = ?1 AND id > ?2 ORDER BY id",
@@ -594,9 +614,8 @@ impl Db {
 
     pub fn list_secret_keys(&self, project_id: i64) -> Result<Vec<String>> {
         let c = self.conn()?;
-        let mut stmt = c.prepare(
-            "SELECT key FROM project_secrets WHERE project_id = ?1 ORDER BY key",
-        )?;
+        let mut stmt =
+            c.prepare("SELECT key FROM project_secrets WHERE project_id = ?1 ORDER BY key")?;
         let rows = stmt
             .query_map(params![project_id], |r| r.get(0))?
             .collect::<Result<Vec<_>, _>>()?;
@@ -624,9 +643,8 @@ impl Db {
 
     pub fn load_secrets(&self, project_id: i64) -> Result<Vec<(String, String)>> {
         let c = self.conn()?;
-        let mut stmt = c.prepare(
-            "SELECT key, value_enc FROM project_secrets WHERE project_id = ?1",
-        )?;
+        let mut stmt =
+            c.prepare("SELECT key, value_enc FROM project_secrets WHERE project_id = ?1")?;
         let rows = stmt
             .query_map(params![project_id], |r| Ok((r.get(0)?, r.get(1)?)))?
             .collect::<Result<Vec<_>, _>>()?;
@@ -636,10 +654,7 @@ impl Db {
     pub fn purge_old_logs(&self, retention_days: i64) -> Result<u64> {
         let c = self.conn()?;
         let cutoff = (chrono::Utc::now() - chrono::Duration::days(retention_days)).to_rfc3339();
-        let n = c.execute(
-            "DELETE FROM logs WHERE created_at < ?1",
-            params![cutoff],
-        )?;
+        let n = c.execute("DELETE FROM logs WHERE created_at < ?1", params![cutoff])?;
         Ok(n as u64)
     }
 
@@ -679,8 +694,7 @@ impl Db {
 }
 
 pub fn hash_password(password: &str) -> Result<String> {
-    bcrypt::hash(password, bcrypt::DEFAULT_COST)
-        .map_err(|e| anyhow::anyhow!("hash error: {e}"))
+    bcrypt::hash(password, bcrypt::DEFAULT_COST).map_err(|e| anyhow::anyhow!("hash error: {e}"))
 }
 
 pub fn verify_password(password: &str, hash: &str) -> Result<bool> {

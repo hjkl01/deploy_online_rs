@@ -170,7 +170,10 @@ pub fn expand_path(p: &str) -> Result<PathBuf> {
 
 /// 安全：工作目录必须落在用户家目录下（与旧版策略一致）
 pub fn assert_under_home(path: &Path) -> Result<()> {
-    let home = dirs::home_dir().context("无法解析家目录")?.canonicalize().unwrap_or_else(|_| dirs::home_dir().unwrap());
+    let home = dirs::home_dir()
+        .context("无法解析家目录")?
+        .canonicalize()
+        .unwrap_or_else(|_| dirs::home_dir().unwrap());
     let target = if path.exists() {
         path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
     } else {
@@ -185,7 +188,11 @@ pub fn assert_under_home(path: &Path) -> Result<()> {
         let home_s = home.to_string_lossy();
         let target_s = target.to_string_lossy();
         if !target_s.starts_with(home_s.as_ref()) && !target_s.starts_with(&format!("{home_s}/")) {
-            bail!("path 必须位于用户家目录下: {} (home={})", target.display(), home.display());
+            bail!(
+                "path 必须位于用户家目录下: {} (home={})",
+                target.display(),
+                home.display()
+            );
         }
     }
     Ok(())

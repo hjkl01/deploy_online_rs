@@ -1,7 +1,7 @@
 //! 部署执行：git sync + 可配置 shell 步骤
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -10,7 +10,6 @@ use anyhow::{bail, Context, Result};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 #[cfg(unix)]
-use std::os::unix::process::CommandExt as _;
 use tokio::sync::watch;
 
 use crate::db::Db;
@@ -38,7 +37,12 @@ impl Worker {
     }
 }
 
-async fn run_loop(db: Arc<Db>, concurrency: usize, secret_key: String, mut shutdown_rx: watch::Receiver<bool>) -> Result<()> {
+async fn run_loop(
+    db: Arc<Db>,
+    concurrency: usize,
+    secret_key: String,
+    mut shutdown_rx: watch::Receiver<bool>,
+) -> Result<()> {
     db.recover_stale()?;
     let mut active: HashMap<i64, tokio::task::JoinHandle<()>> = HashMap::new();
 
@@ -121,7 +125,14 @@ async fn execute_deployment(db: &Db, deployment_id: i64, secret_key: &str) -> Re
         step_ids.push(sid);
     }
 
-    log_line(db, deployment_id, None, "system", &format!(">>> 开始部署 {} (#{})\n", wf.name, deployment_id)).await;
+    log_line(
+        db,
+        deployment_id,
+        None,
+        "system",
+        &format!(">>> 开始部署 {} (#{})\n", wf.name, deployment_id),
+    )
+    .await;
 
     let mut env: HashMap<String, String> = std::env::vars().collect();
     for (k, v) in &wf.env {
@@ -136,7 +147,14 @@ async fn execute_deployment(db: &Db, deployment_id: i64, secret_key: &str) -> Re
                         env.insert(k, v);
                     }
                     Err(e) => {
-                        log_line(db, deployment_id, None, "stderr", &format!("解密 secret {k} 失败: {e}\n")).await;
+                        log_line(
+                            db,
+                            deployment_id,
+                            None,
+                            "stderr",
+                            &format!("解密 secret {k} 失败: {e}\n"),
+                        )
+                        .await;
                         db.finish_deployment(deployment_id, "failed", 1)?;
                         return Ok(());
                     }
@@ -184,7 +202,14 @@ async fn execute_deployment(db: &Db, deployment_id: i64, secret_key: &str) -> Re
             }
             Err(e) => {
                 let msg = format!("{e:#}");
-                log_line(db, deployment_id, Some(step_id), "stderr", &format!("{msg}\n")).await;
+                log_line(
+                    db,
+                    deployment_id,
+                    Some(step_id),
+                    "stderr",
+                    &format!("{msg}\n"),
+                )
+                .await;
                 db.mark_step_finished(step_id, "failed", 1, elapsed, &msg)?;
                 final_code = 1;
                 if !step.continue_on_error {
@@ -234,7 +259,14 @@ async fn run_step(
     match &step.kind {
         StepKind::Sync => {
             let git = wf.git.as_ref().context("sync 需要 git 配置")?;
-            log_line(db, deployment_id, Some(step_id), "system", &format!("[sync] path={}\n", root.display())).await;
+            log_line(
+                db,
+                deployment_id,
+                Some(step_id),
+                "system",
+                &format!("[sync] path={}\n", root.display()),
+            )
+            .await;
             let sha = git_sync(db, deployment_id, step_id, root, git).await?;
             Ok(StepResult::Ok {
                 code: 0,
@@ -242,7 +274,14 @@ async fn run_step(
             })
         }
         StepKind::HealthCheck { url } => {
-            log_line(db, deployment_id, Some(step_id), "system", &format!("[health_check] {url}\n")).await;
+            log_line(
+                db,
+                deployment_id,
+                Some(step_id),
+                "system",
+                &format!("[health_check] {url}\n"),
+            )
+            .await;
             let timeout = Duration::from_secs(step.timeout.max(1));
             let code = health_check(url, timeout).await?;
             log_line(
@@ -311,16 +350,16 @@ async fn git_sync(
         let before = git_sha(root).await.ok();
         if let Some(ref b) = before {
             let _ = db.set_git_sha(deployment_id, Some(b), None);
-            log_line(db, deployment_id, Some(step_id), "system", &format!("before_sha={b}\n")).await;
+            log_line(
+                db,
+                deployment_id,
+                Some(step_id),
+                "system",
+                &format!("before_sha={b}\n"),
+            )
+            .await;
         }
-        run_git(
-            db,
-            deployment_id,
-            step_id,
-            root,
-            &["checkout", &git.branch],
-        )
-        .await?;
+        run_git(db, deployment_id, step_id, root, &["checkout", &git.branch]).await?;
         run_git(db, deployment_id, step_id, root, &["pull", "--ff-only"]).await?;
     } else {
         if let Some(parent) = root.parent() {
@@ -339,11 +378,24 @@ async fn git_sync(
         run_git(db, deployment_id, step_id, parent, &arg_refs).await?;
     }
     let sha = git_sha(root).await?;
-    log_line(db, deployment_id, Some(step_id), "system", &format!("after_sha={sha}\n")).await;
+    log_line(
+        db,
+        deployment_id,
+        Some(step_id),
+        "system",
+        &format!("after_sha={sha}\n"),
+    )
+    .await;
     Ok(sha)
 }
 
-async fn run_git(db: &Db, deployment_id: i64, step_id: i64, cwd: &Path, args: &[&str]) -> Result<()> {
+async fn run_git(
+    db: &Db,
+    deployment_id: i64,
+    step_id: i64,
+    cwd: &Path,
+    args: &[&str],
+) -> Result<()> {
     log_line(
         db,
         deployment_id,
@@ -391,7 +443,11 @@ async fn run_shell(
 ) -> Result<i32> {
     let shell_path = which::which(shell).with_context(|| format!("找不到 shell: {shell}"))?;
     // login interactive 以复用用户环境（asdf 等）
-    let flag = if shell.ends_with("zsh") { "-lic" } else { "-lic" };
+    let flag = if shell.ends_with("zsh") {
+        "-lic"
+    } else {
+        "-lic"
+    };
 
     let mut cmd = Command::new(shell_path);
     cmd.args([flag, command])
@@ -473,7 +529,14 @@ async fn stream_output(
         if let Some(out) = stdout {
             let mut lines = BufReader::new(out).lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                log_line(db, deployment_id, Some(step_id), "stdout", &format!("{line}\n")).await;
+                log_line(
+                    db,
+                    deployment_id,
+                    Some(step_id),
+                    "stdout",
+                    &format!("{line}\n"),
+                )
+                .await;
             }
         }
     };
@@ -481,7 +544,14 @@ async fn stream_output(
         if let Some(err) = stderr {
             let mut lines = BufReader::new(err).lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                log_line(db, deployment_id, Some(step_id), "stderr", &format!("{line}\n")).await;
+                log_line(
+                    db,
+                    deployment_id,
+                    Some(step_id),
+                    "stderr",
+                    &format!("{line}\n"),
+                )
+                .await;
             }
         }
     };

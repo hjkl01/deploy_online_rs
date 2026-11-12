@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
-use serde::Deserialize;
 
 #[derive(Clone, Debug)]
 pub struct AppConfig {
@@ -10,39 +9,8 @@ pub struct AppConfig {
     pub admin_username: String,
     /// 已哈希的管理员密码；首次启动若库中无用户则写入
     pub admin_password_hash: String,
-    pub admin_password_plain_for_bootstrap: Option<String>,
     pub worker_concurrency: usize,
     pub log_retention_days: i64,
-}
-
-#[derive(Debug, Deserialize)]
-struct EnvFile {
-    #[serde(default = "default_secret")]
-    secret_key: String,
-    #[serde(default = "default_admin_user")]
-    admin_username: String,
-    #[serde(default = "default_admin_pass")]
-    admin_password: String,
-    #[serde(default = "default_concurrency")]
-    worker_concurrency: usize,
-    #[serde(default = "default_retention")]
-    log_retention_days: i64,
-}
-
-fn default_secret() -> String {
-    "change-me".into()
-}
-fn default_admin_user() -> String {
-    "admin".into()
-}
-fn default_admin_pass() -> String {
-    "admin".into()
-}
-fn default_concurrency() -> usize {
-    4
-}
-fn default_retention() -> i64 {
-    30
 }
 
 impl AppConfig {
@@ -74,7 +42,10 @@ impl AppConfig {
             .unwrap_or(30);
 
         if secret_key == "change-me" || secret_key.len() < 16 {
-            bail!("请设置 SECRET_KEY（至少 16 字符的随机串），例如环境变量或 {}/.env", data_dir.display());
+            bail!(
+                "请设置 SECRET_KEY（至少 16 字符的随机串），例如环境变量或 {}/.env",
+                data_dir.display()
+            );
         }
         if admin_password == "admin" {
             bail!("请设置 ADMIN_PASSWORD（不要使用默认值 admin）");
@@ -87,7 +58,6 @@ impl AppConfig {
             secret_key,
             admin_username,
             admin_password_hash,
-            admin_password_plain_for_bootstrap: Some(admin_password),
             worker_concurrency: worker_concurrency.max(1),
             log_retention_days,
         })

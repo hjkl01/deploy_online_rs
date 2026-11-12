@@ -3,8 +3,8 @@ mod config;
 mod crypto;
 mod db;
 mod embed;
-mod workflow;
 mod worker;
+mod workflow;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -18,7 +18,10 @@ use crate::db::Db;
 use crate::worker::Worker;
 
 #[derive(Parser, Debug)]
-#[command(name = "deploy_online", about = "单二进制 Linux 部署平台（YAML 工作流）")]
+#[command(
+    name = "deploy_online",
+    about = "单二进制 Linux 部署平台（YAML 工作流）"
+)]
 struct Cli {
     /// 监听地址
     #[arg(long, default_value = "127.0.0.1:8000", env = "DEPLOY_ONLINE_BIND")]
@@ -68,7 +71,11 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let db = Arc::new(db);
-    let worker_handle = Worker::spawn(Arc::clone(&db), cfg.worker_concurrency, cfg.secret_key.clone());
+    let worker_handle = Worker::spawn(
+        Arc::clone(&db),
+        cfg.worker_concurrency,
+        cfg.secret_key.clone(),
+    );
 
     // 启动时清理过期日志
     match db.purge_old_logs(cfg.log_retention_days) {

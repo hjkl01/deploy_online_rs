@@ -5,7 +5,7 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{delete, get, post, put};
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
@@ -25,7 +25,10 @@ pub struct AppState {
 pub fn router(db: Arc<Db>, cfg: AppConfig) -> Router {
     let state = AppState { db, cfg };
     Router::new()
-        .route("/health", get(|| async { Json(serde_json::json!({"status":"ok"})) }))
+        .route(
+            "/health",
+            get(|| async { Json(serde_json::json!({"status":"ok"})) }),
+        )
         .route("/api/auth/login", post(login))
         .route("/api/auth/logout", post(logout))
         .route("/api/auth/me", get(me))
@@ -267,8 +270,8 @@ async fn upsert_secret(
     if body.key.is_empty() || body.key.contains('=') {
         return Err(ApiError::BadRequest("secret key 无效".into()));
     }
-    let enc = encrypt_secret(&state.cfg.secret_key, &body.value)
-        .map_err(|e| ApiError::Internal(e))?;
+    let enc =
+        encrypt_secret(&state.cfg.secret_key, &body.value).map_err(|e| ApiError::Internal(e))?;
     state.db.upsert_secret(id, &body.key, &enc)?;
     Ok(Json(serde_json::json!({"ok": true, "key": body.key})))
 }

@@ -4,7 +4,8 @@
 #   make run       构建并启动（需已设置 SECRET_KEY / ADMIN_PASSWORD）
 #   make clean     清理构建产物
 
-CARGO       ?= cargo
+# rustup 安装的 cargo 常在 ~/.cargo/bin，不在 make 自己的 PATH 里
+CARGO       ?= $(or $(shell command -v cargo 2>/dev/null),$(HOME)/.cargo/bin/cargo)
 TARGET      ?= release
 BIN_NAME    := deploy_online
 DIST_DIR    := dist
@@ -23,7 +24,7 @@ endif
 
 help:
 	@echo "常用目标:"
-	@echo "  make build        将 static/ 前端嵌入后端，编译 release 单二进制 → $(DIST_DIR)/$(BIN_NAME)"
+	@echo "  make build        将 static/ 前端嵌入后端，编译 release 单二进制 → ./$(BIN_NAME) 和 $(DIST_DIR)/$(BIN_NAME)"
 	@echo "  make build-debug  debug 构建"
 	@echo "  make check        cargo check（不链接）"
 	@echo "  make run          构建后启动（127.0.0.1:8000）"
@@ -47,9 +48,12 @@ build: ensure-static
 	@mkdir -p $(DIST_DIR)
 	@cp -f $(CARGO_OUT) $(DIST_DIR)/$(BIN_NAME)
 	@chmod +x $(DIST_DIR)/$(BIN_NAME)
+	@cp -f $(CARGO_OUT) ./$(BIN_NAME)
+	@chmod +x ./$(BIN_NAME)
 	@echo ""
 	@echo "完成: $(DIST_DIR)/$(BIN_NAME) ($$(du -h $(DIST_DIR)/$(BIN_NAME) | cut -f1))"
-	@echo "运行: SECRET_KEY=... ADMIN_PASSWORD=... ./$(DIST_DIR)/$(BIN_NAME) --bind 127.0.0.1:8000"
+	@echo "      ./$(BIN_NAME) ($$(du -h ./$(BIN_NAME) | cut -f1))"
+	@echo "运行: SECRET_KEY=... ADMIN_PASSWORD=... ./$(BIN_NAME) --bind 127.0.0.1:8000"
 
 build-debug:
 	@$(MAKE) build TARGET=debug
@@ -73,4 +77,4 @@ install: build
 
 clean:
 	$(CARGO) clean
-	rm -rf $(DIST_DIR)
+	rm -rf $(DIST_DIR) ./$(BIN_NAME)
