@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 
@@ -13,21 +13,28 @@ pub struct AppConfig {
     pub log_retention_days: i64,
 }
 
+pub fn default_data_dir() -> PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("deploy_online")
+}
+
+/// 加载 .env：优先 data_dir/.env，其次当前目录。
+/// 必须在 clap 解析之前调用，否则 DEPLOY_ONLINE_* 收不到文件里的值。
+pub fn load_env_file(data_dir: Option<&Path>) {
+    let env_path = data_dir.unwrap_or(&default_data_dir()).join(".env");
+    if env_path.exists() {
+        dotenvy::from_path(&env_path).ok();
+    } else {
+        dotenvy::dotenv().ok();
+    }
+}
+
 impl AppConfig {
     pub fn load(data_dir_override: Option<PathBuf>) -> Result<Self> {
-        let data_dir = data_dir_override.unwrap_or_else(|| {
-            dirs::data_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("deploy_online")
-        });
+        let data_dir = data_dir_override.unwrap_or_else(default_data_dir);
 
-        // 可选 .env：优先 data_dir/.env，其次当前目录
-        let env_path = data_dir.join(".env");
-        if env_path.exists() {
-            dotenvy::from_path(&env_path).ok();
-        } else {
-            dotenvy::dotenv().ok();
-        }
+        load_env_file(Some(&data_dir));
 
         let secret_key = std::env::var("SECRET_KEY").unwrap_or_else(|_| "change-me".into());
         let admin_username = std::env::var("ADMIN_USERNAME").unwrap_or_else(|_| "admin".into());

@@ -49,6 +49,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cli = Cli::parse();
+    // clap 在解析时就取 env 值，.env 必须先加载；再解析一次让 DEPLOY_ONLINE_* 生效
+    config::load_env_file(cli.data_dir.as_deref());
+    let cli = Cli::parse();
     let cfg = AppConfig::load(cli.data_dir)?;
     cfg.ensure_dirs()?;
 

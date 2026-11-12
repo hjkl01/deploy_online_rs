@@ -95,6 +95,9 @@ steps:
 | `LOG_RETENTION_DAYS` | 日志保留天数，默认 30 |
 | `DEPLOY_ONLINE_BIND` | 监听地址 |
 | `DEPLOY_ONLINE_DATA` | 数据目录（默认 XDG data） |
+| `RUST_LOG` | 日志级别，默认 `info` |
+
+完整示例见 [`.env.example`](.env.example)：`cp .env.example .env` 后填写 `SECRET_KEY` 与 `ADMIN_PASSWORD` 即可。
 
 ## 安全
 
