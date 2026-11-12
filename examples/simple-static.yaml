@@ -1,0 +1,25 @@
+name: static-site
+description: 纯静态站点，clone 后 build 并拷贝到 nginx 目录
+
+path: ~/apps/static-site
+
+git:
+  url: git@github.com:example/static-site.git
+  branch: main
+
+shell: bash
+
+steps:
+  - name: Sync
+    action: sync
+
+  - name: Install
+    run: npm ci
+
+  - name: Build
+    run: npm run build
+
+  - name: Publish
+    run: |
+      rsync -a --delete out/ ~/www/static-site/
+      echo "published $(date -Iseconds)"
